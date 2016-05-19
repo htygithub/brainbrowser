@@ -49,10 +49,14 @@
           }, { result_type: "arraybuffer" });
         });
       });
+    } else if (description.header_source && description.raw_data_source) {
+      parseHeader(description.header_source, function(header) {
+        createMincVolume(header, description.raw_data_source, callback);
+      });
     } else {
       error_message = "invalid volume description.\n" +
-        "Description must contain property pair 'header_url' and 'raw_data_url', or\n" +
-        "'header_file' and 'raw_data_file'.";
+        "Description must contain property pair 'header_url' and 'raw_data_url', \n" +
+        "'header_file' and 'raw_data_file' \nor 'header_source' and 'raw_data_source'.";
 
       BrainBrowser.events.triggerEvent("error", { message: error_message });
       throw new Error(error_message);
@@ -368,6 +372,21 @@
       },
       getVoxelMax: function() {
         return volume.header.voxel_max;
+      },
+      /* given a width and height (from the panel), this function returns the "best"
+       * single zoom level that will guarantee that the image fits exactly into the
+       * current panel.
+       */
+      getPreferredZoom: function(width, height) {
+        var header = volume.header;
+        var x_fov = header.xspace.space_length * Math.abs(header.xspace.step);
+        var y_fov = header.yspace.space_length * Math.abs(header.yspace.step);
+        var z_fov = header.zspace.space_length * Math.abs(header.xspace.step);
+        var xw = width / x_fov;
+        var yw = width / y_fov;
+        var yh = height / y_fov;
+        var zh = height / z_fov;
+        return Math.min(yw, xw, zh, yh);
       }
     };
     return volume;
@@ -509,7 +528,7 @@
     header.zspace.direction_cosines = header.zspace.direction_cosines.map(parseFloat);
 
     /* Incrementation offsets for each dimension of the volume.
-     * Note that this somewhat format-specific, so it does not 
+     * Note that this somewhat format-specific, so it does not
      * belong in the generic "createVolume()" code.
      */
     header[header.order[0]].offset = header[header.order[1]].space_length * header[header.order[2]].space_length;
